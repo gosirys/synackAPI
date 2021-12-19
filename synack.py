@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore")
 class synack:
     codename = None
     def __init__(self):
+        self.ta_root = os.getenv('TA')
         self.session = requests.Session()
         self.jsonResponse = []
         self.assessments = []
@@ -593,6 +594,7 @@ class synack:
         pageNum = 1
         next_page = True
         unregistered_slugs = []
+        LP_req = []
         while next_page:
             url_slugs = self.url_unregistered_slugs + str(pageNum)
             response = self.try_requests("GET", url_slugs, 10)
@@ -600,7 +602,13 @@ class synack:
             if (len(jsonResponse)!=0):
                 for i in range (len(jsonResponse)):
                     if jsonResponse[i]["category"]["name"] in self.assessments:
-                        unregistered_slugs.append(str(jsonResponse[i]["slug"]))
+                        code = jsonResponse[i]["codename"]
+                        lp_req = str(jsonResponse[i]["workspace_access_missing"])
+                        if lp_req != "True":
+                            unregistered_slugs.append(str(jsonResponse[i]["slug"]))
+                        else:
+                            LP_req.append(str(code))
+
                 pageNum += 1
             else:
                 next_page = False
@@ -617,6 +625,10 @@ class synack:
                 print("Error registerring "+unregistered_slugs[i]+"!")
             else:
                 print("Successfully registered "+str(codename))
+
+        if LP_req:
+            for i in range(len(LP_req)):
+                print("\t[-] Did not register "+LP_req[i]+" as it requires LP+")
 
 ###############
 ## Keepalive ##
@@ -926,3 +938,121 @@ class synack:
         return(transactions)
 
 
+######################
+## My Custom Stuff
+######################
+
+    def write_data(self, format_data, cat, codename,filename,data):
+
+        target_foldername = ""
+
+        #if len(self.codename) != 0:
+        if codename != "z":
+            target_foldername = codename.upper()
+
+        #targetPath = self.ta_root + "/" + cat + "/" + target_foldername
+        targetPath = self.ta_root + "/" + target_foldername
+
+        if os.path.isdir(targetPath) == False:
+            os.mkdir(targetPath)
+
+        filePath = targetPath+"/"+filename
+        if os.path.exists(filePath):
+            os.remove(filePath)
+
+        with open(filePath, mode='wt', encoding='utf-8') as myfile:
+
+            if format_data == "str":
+                myfile.write('\n'.join(data))
+                myfile.write('\n')
+
+            elif format_data == "json":
+                myfile.write(json.dumps(data))
+
+
+
+    def fetch_data(self,codename):
+
+        codename = str(codename.strip())
+
+        category = str(self.getCategory(codename))
+
+
+        ###################################################
+        # need to convert the scope to 2 versions:
+        # 1. normal one by line
+        # 2. burp compatible like my script
+
+        ###################################################
+        # need to add checks if the folder already exists like i do with hackon ..
+
+
+        if category == "Host":
+            #print("3")
+            cidrs = self.getScope(codename)
+            ips = self.getIPs(cidrs)
+            ips_str = str(ips)
+            no_ips = len(ips)
+
+            #print(ips_str)
+            print("\tTotal IPs in scope: "+str(no_ips))
+            print("\nIPs: \n"+ips_str)
+
+            self.write_data("json",category,codename,"scope.txt",ips_str)
+
+
+            analytics = self.getAnalytics(codename,'all')
+            str_analytics = str(analytics)
+
+            #print("\nAnalytics: \n"+str_analytics)
+
+            self.write_data("json",category,codename,"analytics_all.txt",str_analytics)
+
+            hydra = self.getHydra(codename)
+            hydra_str = str(hydra)
+
+            #print("\nHydra: \n"+hydra_str)
+
+            self.write_data("json",category,codename,"hydra_summary.txt",hydra_str)
+
+
+
+        elif category == "Web Application":
+                
+            scope = ()
+            tupleList = set()
+            scope = self.getScope(codename)
+
+            for j in range(len(scope)):
+                scheme = scope[j]['scheme']
+                netloc = scope[j]['netloc']
+                path = scope[j]['netloc']
+                port = scope[j]['port']
+                wildcard = scope[j]['wildcard']
+                tupleList.add(netloc)
+                if wildcard == True:
+                    # You can add a subdomain enumeration call here
+                    # subdomains = enumerateSubdomains(netloc)
+                    tupleList.add(netloc)
+                else:
+                    tupleList.add(netloc)
+
+            scopeList = list(tupleList)
+
+            str_scope = str(scopeList)
+            no_apps = len(scopeList)
+
+            print("\tTotal Apps in scope: "+str(no_apps))
+            #print("\nScope: \n"+str_scope)
+
+            self.write_data("json","Web",codename,"scope.txt",str_scope)
+
+            analytics = self.getAnalytics(codename,'all')
+            str_analytics = str(analytics)
+
+            #print("\nAnalytics: \n"+str_analytics)
+
+            self.write_data("json","Web",codename,"analytics_all.txt",str_analytics)
+
+        else:
+            print("Category of no interest: "+category+" . Skipping ..")
