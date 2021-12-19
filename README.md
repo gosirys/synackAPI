@@ -1,3 +1,15 @@
+# Forked Version
+Forked the original repo to have my customised version of it, specifically it includes some changes that suit better with my environment.
+This also includes a CLI which is WIP that:
+1. Polls notifications every minute, whenever a new target is onboarded it automatically registers it and collects all data
+2. Within each polling, it also reports of new vulnerabilities being submitted on targets <- TODO
+3. From the CLI, you can automatically perform the most common actions one might want, such as:
+   * Fetch all data about a specific target
+   * Dump all analytics from each target
+   * Generally call any of the main functions offered by the library
+
+Below, the original README from the main Repo
+  
 # Library for interacting with Synack API 
 This is a library and set of scripts that make SRT life a little easier when interacting with the platform from a linux commandline.
 * Connect to platform
